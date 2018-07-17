@@ -5,20 +5,20 @@
 ###############
 
 # Datasets:    CompleteResponses.csv, SurveyIncomplete.csv (prediction set/new 
-#              data), results.csv (results). See survey key description of feat-
-#              ures and label.
+#              data), results.csv (results). See survey key for description of 
+#              features and label.
 # Final Model: rangerFit.rds (random forest). See brand_preference_tuning.xlsx
 #              for a record of the performance of different models attempted and
 #              of the effects of their tuning.
 # Scenario:    Electronidex is an online and brick-and-mortar electronics retai-
 #              ler. In order to help us decide which company to pursue a deeper 
-#              strategic relationship with between Sony or Acer, we hired a mar-
-#              keting research firm to conduct a survey on some of our customers 
-#              to see of the two brands they prefer. However, a third of the re-
-#              sponses are missing the label (5000 examples in SurveyIncomplete-
-#              .csv). We would like to predict these missing labels so we can 
-#              a more accurate idea of which company to pursue.
-# Goal: Predict the missing labels in SurveyInComplete.csv
+#              strategic relationship with (between Sony or Acer), we hired a 
+#              marketing research firm to conduct a survey on some of our custo-
+#              mers to see which of the two brands they prefer. However, a third 
+#              of the responses have missing labels (5000 examples in SurveyInc-
+#              omplete.csv). We would like to predict these missing labels so we 
+#              can have a more accurate suggestion of which company to pursue.
+# Goal:        Predict the missing labels in SurveyInComplete.csv
 
 
 ###############
