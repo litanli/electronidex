@@ -26,7 +26,7 @@
 ###############
 
 rm(list = ls())
-setwd("C:/Users/Litan/Desktop/electronidex/brand_preference")
+setwd("C:/Users/Litan Li/Desktop/electronidex/brand_preference")
 
 
 ###############
@@ -35,7 +35,6 @@ setwd("C:/Users/Litan/Desktop/electronidex/brand_preference")
 
 library(caret)
 library(corrplot)
-library(mlbench)
 library(readr)
 
 
@@ -48,11 +47,8 @@ library(doParallel)
 # Check number of cores and workers available 
 detectCores()
 cl <- makeCluster(detectCores()-1, type='PSOCK')
+# Start parallel cluster
 registerDoParallel(cl)
-# to stop cluster/parallel:
-#stopCluster(cl) 
-# to reactivate parallel:
-#registerDoParallel(cl)
 
 
 ##############
@@ -189,13 +185,12 @@ testSetS <- predict(scaleParamsTrain, testSet) # scaled with training set means 
 predictionSetS <- predict(scaleParamsTrain, SurveyIncomplete) # scaled with train set means and std. devs.
 
 # save data
-write.csv(trainSetS, "rf_trainSetS.csv", row.names = FALSE)
-write.csv(testSetS, "rf_testSetS.csv", row.names = FALSE)
-write.csv(predictionSetS, "rf_predictionSetS.csv", row.names = FALSE)
-#trainSetS      <- read.csv("rf_trainSetS.csv")
-#testSetS       <- read.csv("rf_testSetS.csv")
-#predictionSetS <- read.csv("rf_predictionSetS.csv")
-
+#write.csv(trainSetS, "rf_trainSetS.csv", row.names = FALSE)
+#write.csv(testSetS, "rf_testSetS.csv", row.names = FALSE)
+#write.csv(predictionSetS, "rf_predictionSetS.csv", row.names = FALSE)
+trainSetS      <- read.csv("rf_trainSetS.csv")
+testSetS       <- read.csv("rf_testSetS.csv")
+predictionSetS <- read.csv("rf_predictionSetS.csv")
 
 #################
 # Train model(s)
@@ -225,7 +220,7 @@ startTime <- Sys.time()
 #               tuneLength = 5) 
 rangerFit <- train(x = trainSetS[ ,1:6], y = trainSetS$brand,
                    method = "ranger",
-                   trControl = rfFitControl,
+                   trControl = rangerFitControl,
                    tuneGrid = rangerGrid)
 endTime <- Sys.time()
 rangerFitRunTime <- endTime - startTime
@@ -245,16 +240,16 @@ print(rangerFit$finalModel)
 
 trainPred <- predict(rangerFit, trainSetS[ ,1:6])
 confusionMatrix(data = trainPred, reference = trainSetS$brand) 
-# trainingset accuracy and kappa - accuracy 0.968, kappa 0.931
+# trainingset accuracy and kappa - accuracy 0.968, kappa 0.933
 
 
 testPred <- predict(rangerFit, testSetS[ ,1:6])
 confusionMatrix(data = testPred, reference = testSetS$brand) 
-# testset accuracy and kappa - accuracy 0.970, kappa 0.936
+# testset accuracy and kappa - accuracy 0.965, kappa 0.926
 
 # save final model
-saveRDS(rangerFit, "rangerFit.rds") 
-#rangerFit <- readRDS("rangerFit.rds")
+#saveRDS(rangerFit, "rangerFit.rds") 
+rangerFit <- readRDS("rangerFit.rds")
 
 
 ##################
@@ -266,8 +261,8 @@ predictionPred <- predict(rangerFit, predictionSetS)
 SurveyIncomplete$brand <- predictionPred
 write.csv(SurveyIncomplete, "results.csv")
 summary(predictionPred)
-# In the incomplete survey, we predict that 1917 of those surveyed would have 
-# prefered Acer while 3083 would have prefered Sony.
+# In the incomplete survey, we predict that 1924 of those surveyed would have 
+# prefered Acer while 3076 would have prefered Sony.
 
 
 #--- Conclusion ---#
