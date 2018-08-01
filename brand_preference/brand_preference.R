@@ -191,6 +191,25 @@ predictionSetS <- predict(scaleParamsTrain, SurveyIncomplete) # scaled with trai
 trainSetS      <- read.csv("rf_trainSetS.csv")
 testSetS       <- read.csv("rf_testSetS.csv")
 predictionSetS <- read.csv("rf_predictionSetS.csv")
+# If reading from csv, need to change variable types again since read.csv() 
+# imports all values as numeric.
+trainSetS$elevel  <- as.ordered(trainSetS$elevel)
+trainSetS$car     <- as.factor(trainSetS$car)
+trainSetS$zipcode <- as.factor(trainSetS$zipcode)
+trainSetS$brand   <- as.factor(trainSetS$brand)
+
+testSetS$elevel  <- as.ordered(testSetS$elevel)
+testSetS$car     <- as.factor(testSetS$car)
+testSetS$zipcode <- as.factor(testSetS$zipcode)
+testSetS$brand   <- as.factor(testSetS$brand)
+
+predictionSetS$elevel  <- as.ordered(predictionSetS$elevel)
+predictionSetS$car     <- as.factor(predictionSetS$car)
+predictionSetS$zipcode <- as.factor(predictionSetS$zipcode)
+str(trainSetS)
+str(testSetS)
+str(predictionSetS)
+
 
 #################
 # Train model(s)
