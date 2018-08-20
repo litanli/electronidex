@@ -16,7 +16,7 @@
 ###############
 
 rm(list = ls())
-setwd("C:/Users/Litan/Desktop/electronidex/product_lineup")
+setwd("C:/Users/Litan Li/Desktop/electronidex/product_lineup")
 
 
 ###############

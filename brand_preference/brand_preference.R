@@ -1,33 +1,46 @@
-# Title: brand_preference
-
 ###############
 # Project Summary
 ###############
 
-# Datasets:    CompleteResponses.csv, SurveyIncomplete.csv (prediction set/new 
-#              data), results.csv (results). See survey key for description of 
-#              features and label.
-# Final Model: rangerFit.rds (random forest). See brand_preference_tuning.xlsx
-#              for a record of the performance of different models attempted and
-#              of the effects of their tuning.
-# Scenario:    Electronidex is an online and brick-and-mortar electronics retai-
-#              ler. In order to help us decide which company to pursue a deeper 
+# Datasets:    complete_responses.csv (training/validation/test set), 
+#              survey_incomplete.csv (prediction set/new data), predictions.csv 
+#              (predictions made on survey_incomplete.csv). See survey_key.xlsx 
+#              for a description of the features and the label.
+#
+# Final Model: ranger_fit.rds (random forest). See "tuning.xlsx" for a record of 
+#              the performance of different models attempted and of the effects 
+#              of their hyperparameter tuning.
+#
+# Scenario:    Electronidex is a mock online and brick-and-mortar electronics 
+#              retailer. In order to help us decide which company to pursue a deeper 
 #              strategic relationship with (between Sony or Acer), we hired a 
 #              marketing research firm to conduct a survey on some of our custo-
 #              mers to see which of the two brands they prefer. However, a third 
-#              of the responses have missing labels (5000 examples in SurveyInc-
-#              omplete.csv). We would like to predict these missing labels so we 
+#              of the responses have missing labels (5000 examples in 
+#              survey_incomplete.csv). We would like to predict these missing labels so we 
 #              can have a more accurate suggestion of which company to pursue.
-# Goal:        Predict the missing labels in SurveyInComplete.csv
 
+# Goal:        Predict the missing labels in survey_incomplete.csv
+#
+# Conclusion:  Top performing model: random forest (ranger) with mtry = 4, 
+#              min.node.size = 9, splitrule = "gini". 
+#              cross-validated accuracy and kappa - accuracy 0.921, kappa 0.833
+#              training_set accuracy and kappa - accuracy 0.970, kappa 0.933
+#              test_set accuracy and kappa - accuracy 0.973, kappa 0.942
+# 
+# Reason:      Accuracy and kappa on the test set are high. 
+#              Good performance on the test set - generalizes well.
+#              Gap between the cross-validation accuracy and the training set
+#              accuracy is small, suggesting the model is not overfitting too
+#              much. Admittedly, the gap in kappa is bigger.
 
+              
 ###############
 # Housekeeping
 ###############
 
 rm(list = ls())
 setwd("C:/Users/Litan Li/Desktop/electronidex/brand_preference")
-
 
 ###############
 # Load packages
@@ -56,10 +69,12 @@ registerDoParallel(cl)
 ##############
 
 # training/validation/test set
-CompleteResponses <- read.csv("CompleteResponses.csv", stringsAsFactors = FALSE, header=T)
+complete_responses <- read.csv("complete_responses.csv", 
+                               stringsAsFactors = FALSE, header=T)
 
 # prediction/new data
-SurveyIncomplete <- read.csv("SurveyIncomplete.csv", stringsAsFactors = FALSE, header=T)
+survey_incomplete <- read.csv("survey_incomplete.csv", 
+                              stringsAsFactors = FALSE, header=T)
 
 
 ################
@@ -67,148 +82,120 @@ SurveyIncomplete <- read.csv("SurveyIncomplete.csv", stringsAsFactors = FALSE, h
 ################
 
 #--- training/validation/test set ---#
-str(CompleteResponses)  # 10,000 obs. of  7 variables 
-summary(CompleteResponses)
+str(complete_responses)  # 10,000 obs. of  7 variables 
+summary(complete_responses)
 
 # plots
-hist(CompleteResponses$salary)
-hist(CompleteResponses$age)
-hist(CompleteResponses$elevel)
-hist(CompleteResponses$car)
-hist(CompleteResponses$zipcode)
-hist(CompleteResponses$credit)
-hist(CompleteResponses$brand)
+hist(complete_responses$salary)
+hist(complete_responses$age)
+hist(complete_responses$elevel)
+hist(complete_responses$car)
+hist(complete_responses$zipcode)
+hist(complete_responses$credit)
+hist(complete_responses$brand)
 
 # check for collinearity - correlation matrix
-corrAll = cor(CompleteResponses, use = "all.obs", method = "pearson")
+corrAll = cor(complete_responses, use = "all.obs", method = "pearson")
 corrplot(corrAll, order = "hclust") # sorts based on level of collinearity
 corrplot(corrAll, method = "circle")
 # Does not seem to be any linearly related variables.
 
 # normal quantile plot. If linear, then attribute values are normally distributed.
-qqnorm(CompleteResponses$salary) 
+qqnorm(complete_responses$salary) 
 # q-q plot. If linear line on y=x, then similar distribution. If linear but not 
 # on y=x, then distributions are linearly related. 
-qqplot(CompleteResponses$salary, CompleteResponses$age, plot.it = TRUE) 
+qqplot(complete_responses$salary, complete_responses$age, plot.it = TRUE) 
 # check for missing values 
-anyNA(CompleteResponses)
-is.na(CompleteResponses)
+anyNA(complete_responses)
+is.na(complete_responses)
 
 
 #--- prediction/new data ---#
-str(SurveyIncomplete)  # 5,000 obs. of  7 variables 
-summary(SurveyIncomplete)
+str(survey_incomplete)  # 5,000 obs. of  7 variables 
+summary(survey_incomplete)
 
 # plot
-hist(SurveyIncomplete$salary)
-hist(SurveyIncomplete$age)
-hist(SurveyIncomplete$elevel)
-hist(SurveyIncomplete$car)
-hist(SurveyIncomplete$zipcode)
-hist(SurveyIncomplete$credit)
+hist(survey_incomplete$salary)
+hist(survey_incomplete$age)
+hist(survey_incomplete$elevel)
+hist(survey_incomplete$car)
+hist(survey_incomplete$zipcode)
+hist(survey_incomplete$credit)
 
-qqnorm(SurveyIncomplete$credit) #normal quantile plot. 
-qqplot(SurveyIncomplete$salary, SurveyIncomplete$age, plot.it = TRUE) # q-q plot. 
+qqnorm(survey_incomplete$credit) #normal quantile plot. 
+qqplot(survey_incomplete$salary, survey_incomplete$age, plot.it = TRUE) # q-q plot. 
 # check for missing values 
-anyNA(SurveyIncomplete)
-is.na(SurveyIncomplete)
+anyNA(survey_incomplete)
+is.na(survey_incomplete)
 
 
 ##########################################
 # Preprocess Data and Feature Engineering
 ##########################################
 
-
-# Encode all categorical variables to numeric data as dummy
-# variables. * NOT PERFORMED* since random forest can handle categorical data.
-
-# Change categorical variables to factor/ordered. See http://appliedpredictivemodeling.com/blog/2013/10/23/the-basics-of-encoding-categorical-data-for-predictive-models
-# for a discussion on encoding to factor vs. encoding to ordinal. 
-# Change elevel to ordered. Treat other categorical variables as nominal. 
-
-# Note that caret dummy() (we're not using it here for random forest since 
-# random forest can handle categorical features) turns ordered catergorical 
-# variables into columns of (standardized) values where the value varies 
-# linearly, quadraticly, cubicly (and so on) with the levels. So if the 
-# underlying relationship between the ordered categorical feature and the label 
-# is for example cubic, we have a feature of data that captures that trend. 
-# See link above for more details.
-
 # Change variable types 
-str(CompleteResponses)
-CompleteResponses$elevel  <- as.ordered(CompleteResponses$elevel)
-CompleteResponses$car     <- as.factor(CompleteResponses$car)
-CompleteResponses$zipcode <- as.factor(CompleteResponses$zipcode)
-CompleteResponses$brand   <- as.factor(CompleteResponses$brand)
+str(complete_responses)
+complete_responses$elevel  <- as.ordered(complete_responses$elevel)
+complete_responses$car     <- as.factor(complete_responses$car)
+complete_responses$zipcode <- as.factor(complete_responses$zipcode)
+complete_responses$brand   <- as.factor(complete_responses$brand)
+str(complete_responses)
 
-str(SurveyIncomplete)
-SurveyIncomplete$elevel  <- as.ordered(SurveyIncomplete$elevel)
-SurveyIncomplete$car     <- as.factor(SurveyIncomplete$car)
-SurveyIncomplete$zipcode <- as.factor(SurveyIncomplete$zipcode)
+str(survey_incomplete)
+survey_incomplete$elevel  <- as.ordered(survey_incomplete$elevel)
+survey_incomplete$car     <- as.factor(survey_incomplete$car)
+survey_incomplete$zipcode <- as.factor(survey_incomplete$zipcode)
+str(survey_incomplete)
 
 # remove label column from prediction/new data - we'll predict this
-SurveyIncomplete$brand <- NULL
-
-str(CompleteResponses)
-str(SurveyIncomplete)
-
-# Create dummy variables. No linear dependencies: fullRank = TRUE
-# * NOT PERFORMED* since random forest can handle categorical data.
-#dummies1 <- dummyVars(~., CompleteResponses, fullRank = TRUE)
-#CompleteResponsesDV <- data.frame(predict(dummies1, CompleteResponses))
-#names(CompleteResponsesDV)[names(CompleteResponsesDV)=="brand.1"] <- "brand"
-#CompleteResponsesDV$brand <- as.factor(CompleteResponsesDV$brand)
-#str(CompleteResponsesDV)
-
-#dummies2 <- dummyVars(~., SurveyIncomplete, fullRank = TRUE)
-#SurveyIncompleteDV <- data.frame(predict(dummies2, SurveyIncomplete))
-#str(SurveyIncompleteDV)
-
-# make polynomial features
-#* NOT PERFORMED* since it turns out our random forest model is not underfitting 
-# with just the original set of features.
+survey_incomplete$brand <- NULL
 
 # Split into training/val set and test set. We will use k-fold cross validation
 # when training, so training and validation examples will both be pulled from 
-# trainSet 
-inTraining <- createDataPartition(CompleteResponses$brand, p=0.8, list=FALSE)
-trainSet <- CompleteResponses[inTraining,]   
-testSet <- CompleteResponses[-inTraining,]   
+# train_set 
+in_training <- createDataPartition(complete_responses$brand, p=0.8, list=FALSE)
+train_set <- complete_responses[in_training,]   
+test_set <- complete_responses[-in_training,]   
 
-# scale features
-scaleParamsTrain <- preProcess(trainSet[, c(1,2,6)], 
+# feature scaling
+scale_params_train <- preProcess(train_set[, c(1,2,6)], 
                                method = c("center", "scale"))
-print(scaleParamsTrain) 
+print(scale_params_train) 
 
-trainSetS <- predict(scaleParamsTrain, trainSet)
-testSetS <- predict(scaleParamsTrain, testSet) # scaled with training set means and std. devs.
-predictionSetS <- predict(scaleParamsTrain, SurveyIncomplete) # scaled with train set means and std. devs.
+train_set <- predict(scale_params_train, train_set)
+# scaled with train set means and std. devs.
+test_set <- predict(scale_params_train, test_set) 
+# scaled with train set means and std. devs.
+prediction_set <- predict(scale_params_train, survey_incomplete) 
 
 # save data
-#write.csv(trainSetS, "rf_trainSetS.csv", row.names = FALSE)
-#write.csv(testSetS, "rf_testSetS.csv", row.names = FALSE)
-#write.csv(predictionSetS, "rf_predictionSetS.csv", row.names = FALSE)
-trainSetS      <- read.csv("rf_trainSetS.csv")
-testSetS       <- read.csv("rf_testSetS.csv")
-predictionSetS <- read.csv("rf_predictionSetS.csv")
+write.csv(train_set, "train_set.csv", row.names = FALSE)
+write.csv(test_set, "test_set.csv", row.names = FALSE)
+write.csv(prediction_set, "prediction_set.csv", row.names = FALSE)
+
+# load data
+train_set      <- read.csv("train_set.csv")
+test_set       <- read.csv("test_set.csv")
+prediction_set <- read.csv("prediction_set.csv")
 # If reading from csv, need to change variable types again since read.csv() 
 # imports all values as numeric.
-trainSetS$elevel  <- as.ordered(trainSetS$elevel)
-trainSetS$car     <- as.factor(trainSetS$car)
-trainSetS$zipcode <- as.factor(trainSetS$zipcode)
-trainSetS$brand   <- as.factor(trainSetS$brand)
+train_set$elevel  <- as.ordered(train_set$elevel)
+train_set$car     <- as.factor(train_set$car)
+train_set$zipcode <- as.factor(train_set$zipcode)
+train_set$brand   <- as.factor(train_set$brand)
 
-testSetS$elevel  <- as.ordered(testSetS$elevel)
-testSetS$car     <- as.factor(testSetS$car)
-testSetS$zipcode <- as.factor(testSetS$zipcode)
-testSetS$brand   <- as.factor(testSetS$brand)
+test_set$elevel  <- as.ordered(test_set$elevel)
+test_set$car     <- as.factor(test_set$car)
+test_set$zipcode <- as.factor(test_set$zipcode)
+test_set$brand   <- as.factor(test_set$brand)
 
-predictionSetS$elevel  <- as.ordered(predictionSetS$elevel)
-predictionSetS$car     <- as.factor(predictionSetS$car)
-predictionSetS$zipcode <- as.factor(predictionSetS$zipcode)
-str(trainSetS)
-str(testSetS)
-str(predictionSetS)
+prediction_set$elevel  <- as.ordered(prediction_set$elevel)
+prediction_set$car     <- as.factor(prediction_set$car)
+prediction_set$zipcode <- as.factor(prediction_set$zipcode)
+str(train_set)
+str(test_set)
+str(prediction_set)
+
 
 
 #################
@@ -219,56 +206,53 @@ str(predictionSetS)
 
 # 10-fold cross validation. 
 # summaryFunction: classification -> Data not skewed -> Use accuracy and kappa 
-rangerFitControl <- trainControl(method = "cv", number = 10,
+ranger_fit_control <- trainControl(method = 'cv', number = 10,
                              summaryFunction = defaultSummary)
 
 # hyperparameter values to try
-modelLookup("ranger")
-rangerGrid <- expand.grid(mtry = c(2,4,6,8,10),
-                          splitrule = c("gini"),
+modelLookup('ranger')
+ranger_grid <- expand.grid(mtry = c(2,4,6,8,10),
+                          splitrule = c('gini'),
                           min.node.size = c(7,9))
-nrow(rangerGrid)
+nrow(ranger_grid)
 
 # Try different sets of hyperparameters, pick the best set based on best 
 # cross-validated accuracy (and kappa), and fit the final model to all the 
 # training data using the optimal hyperparameter set.
-startTime <- Sys.time()
-#rfFit <- train(x = trainSetS[ ,1:6], y = trainSetS$brand, 
-#               method="rf", 
-#               trControl=rfFitControl,
-#               tuneLength = 5) 
-rangerFit <- train(x = trainSetS[ ,1:6], y = trainSetS$brand,
+tic <- Sys.time()
+ranger_fit <- train(x = train_set[ ,1:6], y = train_set$brand,
                    method = "ranger",
-                   trControl = rangerFitControl,
-                   tuneGrid = rangerGrid)
-endTime <- Sys.time()
-rangerFitRunTime <- endTime - startTime
+                   trControl = ranger_fit_control,
+                   tuneGrid = ranger_grid)
+toc <- Sys.time()
+runtime <- toc - tic
 
+print(ranger_fit) 
 
-print(rangerFit) 
+# confusion matrix for the hold-out samples
+confusionMatrix(ranger_fit, norm = "none") 
 # cross-validated accuracy and kappa - accuracy 0.921, kappa 0.833
-confusionMatrix(rangerFit, norm = "none") # confusion matrix for the hold-out samples
-ggplot(rangerFit)
-ggplot(rangerFit, metric = "Kappa")
-varImp(rangerFit) # most important features
 
+ggplot(ranger_fit)
+ggplot(ranger_fit, metric = "Kappa")
+varImp(ranger_fit) # most important features
 
-print(rangerFit$finalModel)  
+print(ranger_fit$finalModel)  
 # OOB accuracy  - OOB accuracy 1-0.079 = 0.921 
 
+train_Pred <- predict(ranger_fit, train_set[ ,1:6])
+confusionMatrix(data = train_Pred, reference = train_set$brand) 
+# trainingset accuracy and kappa - accuracy 0.970, kappa 0.933
 
-trainPred <- predict(rangerFit, trainSetS[ ,1:6])
-confusionMatrix(data = trainPred, reference = trainSetS$brand) 
-# trainingset accuracy and kappa - accuracy 0.968, kappa 0.933
-
-
-testPred <- predict(rangerFit, testSetS[ ,1:6])
-confusionMatrix(data = testPred, reference = testSetS$brand) 
-# testset accuracy and kappa - accuracy 0.965, kappa 0.926
+test_Pred <- predict(ranger_fit, test_set[ ,1:6])
+confusionMatrix(data = test_Pred, reference = test_set$brand) 
+# testset accuracy and kappa - accuracy 0.973, kappa 0.942
 
 # save final model
-#saveRDS(rangerFit, "rangerFit.rds") 
-rangerFit <- readRDS("rangerFit.rds")
+#saveRDS(ranger_fit, "ranger_fit.rds") 
+
+# load final model
+ranger_fit <- readRDS("ranger_fit.rds")
 
 
 ##################
@@ -276,28 +260,12 @@ rangerFit <- readRDS("rangerFit.rds")
 ##################
 
 # predict with best model
-predictionPred <- predict(rangerFit, predictionSetS)
-SurveyIncomplete$brand <- predictionPred
-write.csv(SurveyIncomplete, "results.csv")
-summary(predictionPred)
-# In the incomplete survey, we predict that 1924 of those surveyed would have 
-# prefered Acer while 3076 would have prefered Sony.
-
-
-#--- Conclusion ---#
-
-# Top performing model: random forest (ranger) with mtry = 4, min.node.size = 9, 
-# splitrule = "gini". 
-
-# Reason: 
-# -Accuracy and kappa on the training set isn't 1, which suggests 
-# it isn't overfitting as the previous models were. 
-# -Good performance on the test set - generalizes well.
-
-# cross-validated accuracy and kappa - accuracy 0.921, kappa 0.833
-# trainingset accuracy and kappa - accuracy 0.968, kappa 0.931
-# testset accuracy and kappa - accuracy 0.970, kappa 0.936
-
+prediction_pred <- predict(ranger_fit, prediction_set)
+survey_incomplete$brand <- prediction_pred
+write.csv(survey_incomplete, "predicted.csv")
+summary(prediction_pred)
+# In the incomplete survey, we predict that 1915 of those surveyed would have 
+# prefered Acer while 3085 would have prefered Sony.
 
 # stop cluster when done
 stopCluster(cl)
