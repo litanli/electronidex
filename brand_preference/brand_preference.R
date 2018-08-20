@@ -27,6 +27,8 @@
 #              cross-validated accuracy and kappa - accuracy 0.921, kappa 0.833
 #              training_set accuracy and kappa - accuracy 0.970, kappa 0.933
 #              test_set accuracy and kappa - accuracy 0.973, kappa 0.942
+#              In the incomplete survey, we predict that 1915 of those surveyed 
+#              would have prefered Acer while 3085 would have prefered Sony.
 # 
 # Reason:      Accuracy and kappa on the test set are high. 
 #              Good performance on the test set - generalizes well.
