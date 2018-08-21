@@ -1,0 +1,4 @@
+"rules","support","confidence","lift","count"
+"4","{HP Black & Tri-color Ink} => {ViewSonic Monitor}",0.00701576004067107,0.43125,3.90907258064516,69
+"5","{HP Black & Tri-color Ink} => {HP Laptop}",0.00782918149466192,0.48125,2.47935764798324,77
+"6","{HP Black & Tri-color Ink} => {iMac}",0.00782918149466192,0.48125,1.87895742358079,77
